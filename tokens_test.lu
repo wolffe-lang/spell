@@ -1,0 +1,38 @@
+/// Tests for tokens.lu — tokenization (T1).
+
+fn test_t1() {
+    // T1: tokenize "Don't stop O'Brien, well-known 42nd street."
+    let line = "Don't stop O'Brien, well-known 42nd street."
+    let tokens = tokenize(line)
+
+    // Expected: Don't(1), stop(7), O'Brien(12), well(21), known(26), nd(34), street(37)
+    assert(tokens.len == 7, "7 tokens")
+
+    let (col1, word1) = tokens[0]
+    assert(word1 == "Don't", "first token Don't")
+    assert(col1 == 1, "Don't at col 1")
+
+    let (col2, word2) = tokens[1]
+    assert(word2 == "stop", "second token stop")
+    assert(col2 == 7, "stop at col 7")
+
+    let (col3, word3) = tokens[2]
+    assert(word3 == "O'Brien", "third token O'Brien")
+    assert(col3 == 12, "O'Brien at col 12")
+
+    let (col4, word4) = tokens[3]
+    assert(word4 == "well", "fourth token well")
+    assert(col4 == 21, "well at col 21")
+
+    let (col5, word5) = tokens[4]
+    assert(word5 == "known", "fifth token known")
+    assert(col5 == 26, "known at col 26")
+
+    let (col6, word6) = tokens[5]
+    assert(word6 == "nd", "sixth token nd")
+    assert(col6 == 34, "nd at col 34")
+
+    let (col7, word7) = tokens[6]
+    assert(word7 == "street", "seventh token street")
+    assert(col7 == 37, "street at col 37")
+}

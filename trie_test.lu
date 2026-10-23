@@ -1,0 +1,116 @@
+/// Tests for trie.lu — build, node_count, contains.
+
+fn test_trie_contains() {
+    // Build a small trie
+    var words = List[str]()
+    (mut words).push("apple")
+    (mut words).push("apples")
+    (mut words).push("apply")
+    (mut words).push("banana")
+    (mut words).push("cat")
+    (mut words).push("cats")
+
+    let t = build_trie(words)
+
+    // Every word is found
+    assert(contains(t, "apple"), "apple is in trie")
+    assert(contains(t, "apples"), "apples is in trie")
+    assert(contains(t, "apply"), "apply is in trie")
+    assert(contains(t, "banana"), "banana is in trie")
+    assert(contains(t, "cat"), "cat is in trie")
+    assert(contains(t, "cats"), "cats is in trie")
+
+    // Prefixes that are not words are not found
+    assert(!contains(t, "app"), "app is not a word")
+    assert(!contains(t, "appl"), "appl is not a word")
+    assert(!contains(t, "appli"), "appli is not a word")
+    assert(!contains(t, "c"), "c is not a word")
+    assert(!contains(t, "ca"), "ca is not a word")
+
+    // Non-existent words are not found
+    assert(!contains(t, "kittenz"), "kittenz is not in trie")
+    assert(!contains(t, "bananas"), "bananas is not in trie")
+    assert(!contains(t, "a"), "a is not in trie")
+}
+
+fn test_trie_empty() {
+    var words = List[str]()
+    let t = build_trie(words)
+    assert(node_count(t) == 1, "empty trie has 1 node (root)")
+    assert(!contains(t, ""), "empty string is not in trie")
+    assert(!contains(t, "a"), "a is not in empty trie")
+}
+
+fn test_trie_unicode() {
+    var words = List[str]()
+    (mut words).push("café")
+    (mut words).push("cafe")
+    (mut words).push("naïve")
+
+    let t = build_trie(words)
+
+    assert(contains(t, "café"), "café is in trie")
+    assert(contains(t, "cafe"), "cafe is in trie")
+    assert(contains(t, "naïve"), "naïve is in trie")
+    assert(!contains(t, "caf"), "caf is not a word")
+    assert(!contains(t, "naï"), "naï is not a word")
+
+    // café is 4 code points deep
+    assert(!contains(t, "caféx"), "caféx is not in trie")
+}
+
+fn test_trie_node_count() {
+    // Build a small trie and count nodes
+    var words = List[str]()
+    (mut words).push("a")
+    (mut words).push("ab")
+    (mut words).push("abc")
+    (mut words).push("abd")
+    (mut words).push("b")
+    (mut words).push("ba")
+
+    let t = build_trie(words)
+
+    // Nodes: root(0), a(1), ab(2), abc(3), abd(4), b(5), ba(6) = 7 nodes
+    assert(node_count(t) == 7, "small trie has 7 nodes")
+}
+
+fn test_trie_dict() {
+    // Build trie from a small set of real words
+    var words = List[str]()
+    (mut words).push("the")
+    (mut words).push("quick")
+    (mut words).push("brown")
+    (mut words).push("fox")
+    (mut words).push("jumps")
+    (mut words).push("over")
+    (mut words).push("lazy")
+    (mut words).push("dog")
+    (mut words).push("café")
+    (mut words).push("naïve")
+    (mut words).push("hello")
+    (mut words).push("world")
+    (mut words).push("kitten")
+    (mut words).push("kittens")
+
+    let t = build_trie(words)
+
+    // Every word is found
+    var i = 0
+    var found = 0
+    while i < words.len {
+        if contains(t, words[i]) {
+            found = found + 1
+        }
+        i = i + 1
+    }
+    assert(found == words.len, "all {words.len} words found in trie")
+
+    // "kittenz" is not found
+    assert(!contains(t, "kittenz"), "kittenz is not in trie")
+
+    // Node count
+    let count = node_count(t)
+    print("trie node count: {count} for {words.len} words")
+    assert(count > words.len, "trie has more nodes than words: {count}")
+}

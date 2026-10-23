@@ -1,0 +1,88 @@
+/// In-process agreement test: trie vs brute force on a small dictionary.
+
+fn test_agree() {
+    // Build a small dictionary (no duplicates)
+    var words = List[str]()
+    (mut words).push("apple")
+    (mut words).push("brown")
+    (mut words).push("cat")
+    (mut words).push("dog")
+    (mut words).push("fox")
+    (mut words).push("hallo")
+    (mut words).push("hello")
+    (mut words).push("helo")
+    (mut words).push("jump")
+    (mut words).push("lazy")
+    (mut words).push("quick")
+    (mut words).push("world")
+    (mut words).push("worl")
+    (mut words).push("wrold")
+
+    let trie = build_trie(words)
+
+    // Test with a few misspelled words
+    let test_words = ["helo", "brwon", "quik", "laZY", "caw"]
+
+    var agreed = 0
+    var total = 0
+
+    for word in test_words {
+        // Brute force
+        let bf_results = suggest_brute(word, words, 2, false)
+        var bf_words = List[str]()
+        for (d, w) in bf_results {
+            (mut bf_words).push(w)
+        }
+
+        // Trie
+        let (trie_results, _) = search(trie, word, 2)
+        var trie_words = List[str]()
+        for (d, idx) in trie_results {
+            (mut trie_words).push(words[idx])
+        }
+
+        // Sort both lists for comparison
+        sort_strs_list(mut bf_words)
+        sort_strs_list(mut trie_words)
+
+        total = total + 1
+        if lists_equal(bf_words, trie_words) {
+            agreed = agreed + 1
+        } else {
+            print("DISAGREE {word}: trie={trie_words.len}, bf={bf_words.len}")
+            print("  trie: {trie_words}")
+            print("  bf:   {bf_words}")
+        }
+    }
+
+    assert(agreed == total, "agree {agreed}/{total}")
+}
+
+/// Sort a list of strings in place using insertion sort.
+fn sort_strs_list(mut xs: List[str]) {
+    let n = xs.len
+    for i in 1..n {
+        let vi = xs[i]
+        var j = i
+        while j > 0 && xs[j - 1] > vi {
+            xs[j] = xs[j - 1]
+            j = j - 1
+        }
+        xs[j] = vi
+    }
+}
+
+/// Check if two lists of strings are equal.
+fn lists_equal(a: List[str], b: List[str]) -> bool {
+    if a.len != b.len {
+        return false
+    }
+    var i = 0
+    while i < a.len {
+        if a[i] != b[i] {
+            return false
+        }
+        i = i + 1
+    }
+    return true
+}

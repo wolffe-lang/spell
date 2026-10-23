@@ -1,0 +1,17 @@
+/// Tests for lev.lu — Levenshtein distance (L1, L2).
+
+fn test_l1() {
+    // L1: known distances
+    assert(distance("kitten", "sitting") == 3, "kitten-sitting")
+    assert(distance("", "abc") == 3, "empty-abc")
+    assert(distance("flaw", "lawn") == 2, "flaw-lawn")
+    assert(distance("café", "cafe") == 1, "cafe-accent")
+}
+
+fn test_l2() {
+    // L2: capped distance
+    assert(distance_capped("kitten", "sitting", 2) == 3, "capped-2")
+    assert(distance_capped("kitten", "sitting", 3) == 3, "capped-3")
+    assert(distance_capped("abc", "abc", 0) == 0, "identical")
+    assert(distance_capped("abc", "abd", 0) == 1, "capped-sub")
+}

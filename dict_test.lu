@@ -1,0 +1,43 @@
+/// Tests for dict.lu — dictionary loading and case rules.
+
+fn test_dict() {
+    // Test is_known with a small dict (build trie from words)
+    var words = List[str]()
+    (mut words).push("apple")
+    (mut words).push("banana")
+    (mut words).push("cherry")
+    (mut words).push("date")
+    (mut words).push("elderberry")
+
+    let trie = build_trie(words)
+    let dict = Dict { words: words, trie: trie }
+    assert(is_known("apple", dict), "apple is known")
+    assert(is_known("Apple", dict), "Apple is known (first-letter-lowered)")
+    assert(!is_known("apricot", dict), "apricot is unknown")
+}
+
+fn test_dict_self_check() {
+    // Build a small trie and verify every word is known
+    var words = List[str]()
+    (mut words).push("apple")
+    (mut words).push("banana")
+    (mut words).push("cherry")
+    (mut words).push("date")
+    (mut words).push("elderberry")
+    (mut words).push("Apple")
+    (mut words).push("BANANA")
+
+    let n = words.len
+    let trie = build_trie(words)
+    let dict = Dict { words: words, trie: trie }
+
+    var i = 0
+    var known = 0
+    while i < n {
+        if is_known(dict.words[i], dict) {
+            known = known + 1
+        }
+        i = i + 1
+    }
+    assert(known == n, "all {n} words are known")
+}
