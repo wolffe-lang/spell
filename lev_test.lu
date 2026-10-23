@@ -1,4 +1,4 @@
-/// Tests for lev.lu — Levenshtein distance (L1, L2).
+/// Tests for lev.lu — Levenshtein distance (L1, L2) and Damerau (L3).
 
 fn test_l1() {
     // L1: known distances
@@ -14,4 +14,19 @@ fn test_l2() {
     assert(distance_capped("kitten", "sitting", 3) == 3, "capped-3")
     assert(distance_capped("abc", "abc", 0) == 0, "identical")
     assert(distance_capped("abc", "abd", 0) == 1, "capped-sub")
+}
+
+fn test_l3() {
+    // L3: restricted Damerau-Levenshtein (optimal string alignment)
+    // Transposition costs 1 edit
+    assert(damerau_distance_capped("ab", "ba", 2) == 1, "ab-ba")
+    assert(damerau_distance_capped("abc", "acb", 2) == 1, "abc-acb")
+    assert(damerau_distance_capped("recieve", "receive", 2) == 1, "recieve-receive")
+    assert(damerau_distance_capped("brwon", "brown", 2) == 1, "brwon-brown")
+    // brwon/blown: 2 edits (transposition + substitution)
+    assert(damerau_distance_capped("brwon", "blown", 3) == 2, "brwon-blown")
+    // recieve/perceive: 3 edits (not 1 — the bug made it 1)
+    assert(damerau_distance_capped("recieve", "perceive", 4) == 3, "recieve-perceive")
+    // ca/abc: 3 edits (restricted form; full Damerau would say 2)
+    assert(damerau_distance_capped("ca", "abc", 4) == 3, "ca-abc")
 }
