@@ -1,0 +1,90 @@
+/// Word tokenization with Unicode awareness.
+///
+/// Rules (README §2):
+///   - A token is a maximal run of letters
+///   - An apostrophe (') is allowed between letters: `don't` is one word
+///   - Digits break tokens
+///   - Hyphens break tokens: `well-known` is two words
+///
+/// `tokenize(line)` returns a List of (column, word) pairs, where column
+/// is the 1-based byte offset of the word start in the line.
+
+use std.str
+
+/// Tokenize a line into (column, word) pairs.
+/// Column is 1-based byte offset.
+pub fn tokenize(line: str) -> List[(int, str)] {
+    var result = List[(int, str)]()
+    let chars = line.chars()
+    let n = chars.len
+    var i = 0
+
+    while i < n {
+        let ch = chars[i]
+        if is_letter(ch) {
+            // Start of a token
+            let start = i
+            i = i + 1
+            // Consume letters and apostrophes between letters
+            while i < n {
+                let ch2 = chars[i]
+                if is_letter(ch2) {
+                    i = i + 1
+                } else if ch2 == '\'' && i + 1 < n && is_letter(chars[i + 1]) {
+                    // Apostrophe between letters
+                    i = i + 1
+                } else {
+                    break
+                }
+            }
+            // Compute byte offset of start
+            var byte_pos = 0
+            var j = 0
+            while j < start {
+                byte_pos = byte_pos + char_len(chars[j])
+                j = j + 1
+            }
+            // Compute byte length of word
+            var word_len = 0
+            j = start
+            while j < i {
+                word_len = word_len + char_len(chars[j])
+                j = j + 1
+            }
+            let word = line[byte_pos..byte_pos + word_len]
+            let col = byte_pos + 1
+            (mut result).push((col, word))
+        } else {
+            i = i + 1
+        }
+    }
+
+    return result
+}
+
+/// Get the byte length of a character.
+fn char_len(ch: char) -> int {
+    let s = "{ch}"
+    return s.len
+}
+
+/// Check if a character is a Unicode letter.
+fn is_letter(ch: char) -> bool {
+    let s = "{ch}"
+    if s.len == 0 {
+        return false
+    }
+    // ASCII letters
+    if s >= "a" && s <= "z" {
+        return true
+    }
+    if s >= "A" && s <= "Z" {
+        return true
+    }
+    // Non-ASCII: treat as a letter (handles accented characters, etc.)
+    if s.len > 1 {
+        return true
+    }
+    // Single byte, non-ASCII — not a letter
+    return false
+}
