@@ -1,0 +1,277 @@
+/// Trie for spell-checking.
+///
+/// Arena-style trie: four parallel lists indexed by node id.
+/// Siblings are kept in character order (inserted in dictionary order).
+/// Node 0 is the root (no edge character).
+
+/// A trie stored in parallel lists.
+struct Trie {
+    /// chars[node] = the edge character from parent to this node.
+    /// Root (node 0) has no edge character; chars[0] is unused.
+    chars: List[char],
+    /// is_word[node] = does a dictionary word end at this node?
+    is_word: List[bool],
+    /// first[node] = first child's id, or -1 if no children.
+    first: List[int],
+    /// next[node] = next sibling's id, or -1 if last sibling.
+    next: List[int],
+    /// word_at[node] = index into the dictionary's words list, or -1.
+    word_at: List[int],
+}
+
+/// Build a trie from a sorted list of words.
+pub fn build_trie(words: List[str]) -> Trie {
+    var chars = List[char]()
+    var is_word = List[bool]()
+    var first = List[int]()
+    var next = List[int]()
+    var word_at = List[int]()
+
+    // Create root (node 0)
+    (mut chars).push('\0')
+    (mut is_word).push(false)
+    (mut first).push(-1)
+    (mut next).push(-1)
+    (mut word_at).push(-1)
+
+    // Insert each word
+    var i = 0
+    while i < words.len {
+        insert_trie_word(mut chars, mut is_word, mut first, mut next, mut word_at, words[i], i)
+        i = i + 1
+    }
+
+    return Trie {
+        chars: chars,
+        is_word: is_word,
+        first: first,
+        next: next,
+        word_at: word_at,
+    }
+}
+
+/// Insert a word into the trie.
+fn insert_trie_word(
+    mut chars: List[char],
+    mut is_word: List[bool],
+    mut first: List[int],
+    mut next: List[int],
+    mut word_at: List[int],
+    word: str,
+    word_idx: int,
+) {
+    let wchars = word.chars()
+    let n = wchars.len
+    var current = 0
+
+    var depth = 0
+    while depth < n {
+        let ch = wchars[depth]
+        let child = find_or_create_child(
+            mut chars,
+            mut is_word,
+            mut first,
+            mut next,
+            mut word_at,
+            current,
+            ch,
+        )
+        current = child
+        depth = depth + 1
+    }
+
+    is_word[current] = true
+    word_at[current] = word_idx
+}
+
+/// Find an existing child with character ch, or create a new one.
+/// Children are kept in character order (siblings sorted by edge char).
+fn find_or_create_child(
+    mut chars: List[char],
+    mut is_word: List[bool],
+    mut first: List[int],
+    mut next: List[int],
+    mut word_at: List[int],
+    parent: int,
+    ch: char,
+) -> int {
+    var sibling = first[parent]
+    var prev_sibling = -1
+
+    while sibling != -1 {
+        let sibling_ch = chars[sibling]
+        if sibling_ch == ch {
+            return sibling
+        }
+        if sibling_ch > ch {
+            break
+        }
+        prev_sibling = sibling
+        sibling = next[sibling]
+    }
+
+    let new_id = chars.len
+    (mut chars).push(ch)
+    (mut is_word).push(false)
+    (mut first).push(-1)
+    (mut next).push(-1)
+    (mut word_at).push(-1)
+
+    if prev_sibling == -1 {
+        next[new_id] = first[parent]
+        first[parent] = new_id
+    } else {
+        next[new_id] = next[prev_sibling]
+        next[prev_sibling] = new_id
+    }
+
+    return new_id
+}
+
+/// Return the number of nodes in the trie.
+pub fn node_count(t: Trie) -> int {
+    return t.chars.len
+}
+
+/// Check if a word is present in the trie.
+pub fn contains(t: Trie, word: str) -> bool {
+    let wchars = word.chars()
+    let n = wchars.len
+
+    if n == 0 {
+        return false
+    }
+
+    var current = 0
+    var depth = 0
+
+    while depth < n {
+        let ch = wchars[depth]
+        var sibling = t.first[current]
+        var found = false
+
+        while sibling != -1 {
+            if t.chars[sibling] == ch {
+                current = sibling
+                found = true
+                break
+            }
+            sibling = t.next[sibling]
+        }
+
+        if !found {
+            return false
+        }
+        depth = depth + 1
+    }
+
+    return t.is_word[current]
+}
+
+/// Search the trie for words within edit distance k of the query.
+/// Returns (List of (distance, word_index), nodes_visited).
+/// The caller resolves word_index into the actual word string.
+pub fn search(t: Trie, query: str, k: int) -> (List[(int, int)], int) {
+    var results = List[(int, int)]()
+    var visited = 0
+
+    if t.chars.len == 0 {
+        return (results, 0)
+    }
+
+    let qchars = query.chars()
+    let m = qchars.len
+
+    // Stack entries: (node_id, depth, dp_row)
+    // dp_row is a List[int] of length m+1.
+    // row[j] = min edit distance between the trie path (up to this node)
+    // and the first j characters of the query.
+    var stack = List[(int, int, List[int])]()
+
+    // Initial row: distances from empty string to query prefixes
+    var init_row = List[int]()
+    var i = 0
+    while i <= m {
+        (mut init_row).push(i)
+        i = i + 1
+    }
+    (mut stack).push((0, 0, init_row))
+
+    while stack.len > 0 {
+        let entry = (mut stack).pop() else |_| { break }
+        let node = entry.0
+        let depth = entry.1
+        let row = entry.2
+
+        visited = visited + 1
+
+        // Check if this node is a word end
+        if t.is_word[node] {
+            let dist = row[m]
+            if dist <= k {
+                let word_idx = t.word_at[node]
+                (mut results).push((dist, word_idx))
+            }
+        }
+
+        // Pruning: if the minimum of the row exceeds k, prune
+        var row_min = row[0]
+        var j = 1
+        while j <= m {
+            if row[j] < row_min {
+                row_min = row[j]
+            }
+            j = j + 1
+        }
+        if row_min > k {
+            continue
+        }
+
+        // Collect children and push in reverse order (for DFS)
+        var children = List[int]()
+        var child = t.first[node]
+        while child != -1 {
+            (mut children).push(child)
+            child = t.next[child]
+        }
+
+        var ci = children.len - 1
+        while ci >= 0 {
+            let c = children[ci]
+            let ch = t.chars[c]
+
+            // Compute new DP row for descending to child c.
+            // The trie path gains one character (ch). We compute the new
+            // row by comparing ch against each query character.
+            var new_row = List[int]()
+            var ni = 0
+            while ni <= m {
+                (mut new_row).push(0)
+                ni = ni + 1
+            }
+
+            // new_row[0] = depth + 1 (deleting all trie chars so far)
+            new_row[0] = depth + 1
+
+            var qi = 0
+            while qi < m {
+                if ch == qchars[qi] {
+                    // Match: no cost
+                    new_row[qi + 1] = row[qi]
+                } else {
+                    // Mismatch: min of insert, delete, substitute
+                    let ins = new_row[qi] + 1
+                    let del = row[qi + 1] + 1
+                    let sub = row[qi] + 1
+                    new_row[qi + 1] = min3(ins, del, sub)
+                }
+                qi = qi + 1
+            }
+
+            (mut stack).push((c, depth + 1, new_row))
+            ci = ci - 1
+        }
+    }
+
+    return (results, visited)
+}

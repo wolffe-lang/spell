@@ -1,0 +1,110 @@
+/// Brute-force suggestions: scan the whole dictionary for words within
+/// edit distance k of a query word.
+///
+/// Returns suggestions as a List of (distance, word) pairs, sorted by
+/// distance then alphabetically.
+
+use std.str
+
+/// Find all dictionary words within edit distance k of the query word.
+/// If damerau is true, uses Damerau-Levenshtein distance (with transpositions).
+/// Returns a List of (distance, word) pairs, sorted by distance then case-insensitively.
+pub fn suggest_brute(query: str, dict: List[str], k: int, damerau: bool) -> List[(int, str)] {
+    var candidates = List[(int, str)]()
+
+    for word in dict {
+        let d = if damerau {
+            damerau_distance_capped(query, word, k)
+        } else {
+            distance_capped(query, word, k)
+        }
+        if d <= k {
+            (mut candidates).push((d, word))
+        }
+    }
+
+    sort_candidates(mut candidates)
+
+    return candidates
+}
+
+/// Sort candidates by distance, then case-insensitively by word.
+fn sort_candidates(mut xs: List[(int, str)]) {
+    // Simple insertion sort for small lists
+    let n = xs.len
+    for i in 1..n {
+        let (di, wi) = xs[i]
+        var j = i
+        while j > 0 {
+            let (dj, wj) = xs[j - 1]
+            if di < dj {
+                xs[j] = xs[j - 1]
+                j = j - 1
+            } else if di == dj {
+                // Case-insensitive comparison
+                let lower_wi = str.lower(wi)
+                let lower_wj = str.lower(wj)
+                if lower_wi < lower_wj {
+                    xs[j] = xs[j - 1]
+                    j = j - 1
+                } else if lower_wi == lower_wj {
+                    // Tie-break: prefer capitalized form
+                    if wi < wj {
+                        xs[j] = xs[j - 1]
+                        j = j - 1
+                    } else {
+                        break
+                    }
+                } else {
+                    break
+                }
+            } else {
+                break
+            }
+        }
+        xs[j] = (di, wi)
+    }
+}
+
+/// Format suggestions for output.
+/// Capitalization hints (same word, different case) are prefixed with ~
+/// and always appear first, regardless of their edit distance.
+pub fn format_suggestions(candidates: List[(int, str)], query: str, max: int) -> str {
+    var result = List[str]()
+    let lower_query = str.lower(query)
+    var count = 0
+
+    // First pass: collect capitalization hints
+    for (d, word) in candidates {
+        if count >= max {
+            break
+        }
+        if str.lower(word) == lower_query && word != query {
+            (mut result).push("~ {word}")
+            count = count + 1
+        }
+    }
+
+    // Second pass: collect other suggestions
+    for (d, word) in candidates {
+        if count >= max {
+            break
+        }
+        if str.lower(word) != lower_query || word == query {
+            (mut result).push(word)
+            count = count + 1
+        }
+    }
+
+    if result.len == 0 {
+        return "(no suggestions)"
+    }
+
+    // Join with ", "
+    var joined = result[0]
+    for i in 1..result.len {
+        joined = joined + ", " + result[i]
+    }
+
+    return joined
+}

@@ -1,0 +1,134 @@
+/// Dictionary loading, case variants, and the ignore list.
+///
+/// A word is known if it appears in the dictionary in any of these forms:
+///   - exact case (`Paris`)
+///   - all lower case (`paris`)
+///   - first letter lowered (`The` → `the`)
+///   - all uppercase form matching a dictionary word (`PARIS` → `Paris`)
+///
+/// The dictionary is loaded from a file (default `/usr/share/dict/words`).
+/// An ignore file adds extra words.
+///
+/// Lookup uses the trie's `contains()` method, which answers in O(|word|)
+/// time by walking the trie.
+
+use std.fs
+use std.str
+
+/// A dictionary backed by a trie for O(|word|) lookups.
+struct Dict {
+    words: List[str],
+    trie: Trie,
+}
+
+/// Load the dictionary from a file, returning a Dict with a trie index.
+fn load_dict(path: str) -> Dict ! {denied, io, not_found, utf8} {
+    let text = fs.read_text(path)?
+    let lines = str.lines(text)
+    var words = List[str]()
+
+    for line in lines {
+        let trimmed = str.trim(line)
+        if trimmed.len > 0 {
+            (mut words).push(trimmed)
+        }
+    }
+
+    // Build the trie from the raw word list (no sorting needed)
+    let trie = build_trie(words)
+
+    return Dict { words: words, trie: trie }
+}
+
+/// Load extra words from an ignore file.
+fn load_ignore(path: str) -> List[str] ! {denied, io, not_found, utf8} {
+    let text = fs.read_text(path)?
+    let lines = str.lines(text)
+    var result = List[str]()
+    for line in lines {
+        let trimmed = str.trim(line)
+        if trimmed.len > 0 {
+            (mut result).push(trimmed)
+        }
+    }
+    return result
+}
+
+/// Check if a word is known, applying case rules.
+/// Uses the trie's contains() method for O(|word|) lookups.
+fn is_known(word: str, dict: Dict) -> bool {
+    // Check exact match
+    if contains(dict.trie, word) {
+        return true
+    }
+    // Check lower-case
+    let lower = str.lower(word)
+    if contains(dict.trie, lower) {
+        return true
+    }
+    // Check first-letter-lowered (for words like "The" → "the")
+    if word.len > 1 {
+        let first_lower = str.lower(word[0..1]) + word[1..]
+        if first_lower != word && contains(dict.trie, first_lower) {
+            return true
+        }
+    }
+    return false
+}
+
+/// Check if a word is all uppercase and matches a dictionary word
+/// case-insensitively. Uses the trie's contains() method.
+fn is_known_uppercase(word: str, dict: Dict) -> bool {
+    if !is_all_upper(word) {
+        return false
+    }
+    let lower = str.lower(word)
+    return contains(dict.trie, lower)
+}
+
+/// Check if a word is known, including the ignore list.
+fn is_known_with_ignore(word: str, dict: Dict, ignore: List[str]) -> bool {
+    if is_known(word, dict) {
+        return true
+    }
+    if is_known_ignore(word, ignore) {
+        return true
+    }
+    return false
+}
+
+/// Check if a word is known in the ignore list.
+fn is_known_ignore(word: str, ignore: List[str]) -> bool {
+    for w in ignore {
+        if w == word {
+            return true
+        }
+    }
+    let lower = str.lower(word)
+    for w in ignore {
+        if w == lower {
+            return true
+        }
+    }
+    if word.len > 1 {
+        let first_lower = str.lower(word[0..1]) + word[1..]
+        if first_lower != word {
+            for w in ignore {
+                if w == first_lower {
+                    return true
+                }
+            }
+        }
+    }
+    return false
+}
+
+/// Check if a string is all uppercase letters.
+fn is_all_upper(s: str) -> bool {
+    if s.len == 0 {
+        return false
+    }
+    let lower = str.lower(s)
+    let upper = str.upper(s)
+    return s == upper && s != lower
+}
