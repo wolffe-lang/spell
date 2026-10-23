@@ -48,9 +48,9 @@ def damerau_levenshtein(a: str, b: str) -> int:
                 dp[i][j] = dp[i - 1][j - 1]
             else:
                 dp[i][j] = 1 + min(dp[i][j - 1], dp[i - 1][j], dp[i - 1][j - 1])
-            # Transposition
+            # Transposition (restricted: cost is dp[i-2][j-2] + 1)
             if i > 1 and j > 1 and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]:
-                dp[i][j] = min(dp[i][j], dp[i - 2][j - 2])
+                dp[i][j] = min(dp[i][j], dp[i - 2][j - 2] + 1)
     return dp[n][m]
 
 

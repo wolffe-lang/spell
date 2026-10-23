@@ -40,16 +40,22 @@ fn main() -> !int {
     // --help anywhere → print help and exit 0
     for a in args {
         if a == "--help" {
-            print("Usage: spell [--dict FILE] [--ignore FILE] [--radius N] [--max N] [FILE|-]...")
-            print("       spell suggest [--radius N] [--max N] WORD...")
-            print("       spell check-index [--dict FILE] [--seed N] [--damerau]")
+            print(
+                "Usage: spell [--dict FILE] [--ignore FILE] [--radius N] [--max N] [--damerau] [FILE|-]...",
+            )
+            print("       spell suggest [--radius N] [--max N] [--damerau] WORD...")
+            print("       spell check-index [--dict FILE] [--seed N]")
             print("       spell bench [--dict FILE] [--damerau]")
             print("       spell --help")
             print("")
             print("  spell suggest: known words print 'WORD: known'.")
             print("  Capitalization hints are marked with ~ (e.g. 'paris' → '~ Paris').")
+            print("  All-caps words are known if any dictionary word matches case-insensitively.")
+            print("  Unknown all-caps words get the suggestions their lower-case form gets.")
             print("  Multi-file mode prefixes output with FILE: (e.g. 'file.txt:1:3: word').")
-            print("  --damerau: use Damerau-Levenshtein distance (transpositions count as 1 edit).")
+            print(
+                "  --damerau: use restricted Damerau-Levenshtein distance (optimal string alignment; transpositions count as 1 edit).",
+            )
             return 0
         }
     }
@@ -71,6 +77,7 @@ fn main() -> !int {
     var ignore_path: str = ""
     var radius = 2
     var max_suggest = 8
+    var damerau = false
     var files = List[str]()
 
     var i = 0
@@ -110,6 +117,8 @@ fn main() -> !int {
                 print("spell: invalid max: {e}")
                 return 2
             }
+        } else if arg == "--damerau" {
+            damerau = true
         } else if arg[0..1] == "-" && arg != "-" {
             print("spell: unknown option: {arg}")
             return 2
@@ -148,7 +157,11 @@ fn main() -> !int {
         for line in lines {
             let unknowns = find_unknowns(line, dict, ignore)
             for (col, word) in unknowns {
-                let suggestions = suggest_with_trie(trie, dict.words, word, radius)
+                let suggestions = if damerau {
+                    suggest_brute(word, dict.words, radius, true)
+                } else {
+                    suggest_with_trie(trie, dict.words, word, radius)
+                }
                 let formatted = format_suggestions(suggestions, word, max_suggest)
                 print("{line_num}:{col}: {word}  → {formatted}")
                 found_unknown = true
@@ -163,7 +176,11 @@ fn main() -> !int {
                 for line in lines {
                     let unknowns = find_unknowns(line, dict, ignore)
                     for (col, word) in unknowns {
-                        let suggestions = suggest_with_trie(trie, dict.words, word, radius)
+                        let suggestions = if damerau {
+                            suggest_brute(word, dict.words, radius, true)
+                        } else {
+                            suggest_with_trie(trie, dict.words, word, radius)
+                        }
                         let formatted = format_suggestions(suggestions, word, max_suggest)
                         if multi {
                             print("{file}:{line_num}:{col}: {word}  → {formatted}")
@@ -197,7 +214,11 @@ fn main() -> !int {
                 for l in lines {
                     let unknowns = find_unknowns(l, dict, ignore)
                     for (col, word) in unknowns {
-                        let suggestions = suggest_with_trie(trie, dict.words, word, radius)
+                        let suggestions = if damerau {
+                            suggest_brute(word, dict.words, radius, true)
+                        } else {
+                            suggest_with_trie(trie, dict.words, word, radius)
+                        }
                         let formatted = format_suggestions(suggestions, word, max_suggest)
                         if multi {
                             print("{file}:{line_num}:{col}: {word}  → {formatted}")
@@ -250,6 +271,9 @@ fn cmd_suggest(args: List[str]) -> !int {
             }
         } else if arg == "--damerau" {
             damerau = true
+        } else if arg[0..1] == "-" {
+            print("spell: unknown option: {arg}")
+            return 2
         } else {
             (mut words).push(arg)
         }
@@ -283,12 +307,18 @@ fn cmd_suggest(args: List[str]) -> !int {
             continue
         }
         found_unknown = true
-        let suggestions = if damerau {
-            suggest_brute(word, dict.words, radius, true)
+        // For all-caps tokens, use the lower-case form for suggestions
+        let query = if is_all_upper(word) {
+            str.lower(word)
         } else {
-            suggest_with_trie(trie, dict.words, word, radius)
+            word
         }
-        let formatted = format_suggestions(suggestions, word, max_suggest)
+        let suggestions = if damerau {
+            suggest_brute(query, dict.words, radius, true)
+        } else {
+            suggest_with_trie(trie, dict.words, query, radius)
+        }
+        let formatted = format_suggestions(suggestions, query, max_suggest)
         print("{word}  → {formatted}")
     }
 
@@ -302,7 +332,6 @@ fn cmd_suggest(args: List[str]) -> !int {
 fn cmd_check_index(args: List[str]) -> !int {
     var dict_path = "/usr/share/dict/words"
     var seed = 0
-    var damerau = false
 
     var i = 1
     while i < args.len {
@@ -324,8 +353,6 @@ fn cmd_check_index(args: List[str]) -> !int {
                 print("spell: invalid seed: {e}")
                 return 2
             }
-        } else if arg == "--damerau" {
-            damerau = true
         }
         i = i + 1
     }
@@ -342,7 +369,7 @@ fn cmd_check_index(args: List[str]) -> !int {
     var r = rand.new(seed)
 
     var agreed = 0
-    var total = if damerau { 50 } else { 500 }
+    var total = 500
 
     for _ in 0..total {
         // Pick a random word from the dictionary
@@ -353,21 +380,15 @@ fn cmd_check_index(args: List[str]) -> !int {
         let misspelled = apply_random_edit(word, mut r)
 
         // Compare trie vs brute-force
-        let bf_results = suggest_brute(misspelled, dict.words, 2, damerau)
+        let bf_results = suggest_brute(misspelled, dict.words, 2, false)
         let bf_words = extract_words(bf_results)
 
-        let trie_results = if damerau {
-            // For --damerau, use brute force (trie doesn't support Damerau)
-            suggest_brute(misspelled, dict.words, 2, true)
-        } else {
-            let (r, _) = search(trie, misspelled, 2)
-            var results = List[(int, str)]()
-            for (d, idx) in r {
-                (mut results).push((d, dict.words[idx]))
-            }
-            results
+        let (trie_results, _) = search(trie, misspelled, 2)
+        var trie_results_list = List[(int, str)]()
+        for (d, idx) in trie_results {
+            (mut trie_results_list).push((d, dict.words[idx]))
         }
-        let trie_words = extract_words(trie_results)
+        let trie_words = extract_words(trie_results_list)
 
         let bf_words_sorted = copy bf_words
         sort_strs_list(mut bf_words_sorted)

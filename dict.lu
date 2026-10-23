@@ -73,6 +73,14 @@ fn is_known(word: str, dict: Dict) -> bool {
             return true
         }
     }
+    // Check all-caps form: scan dictionary for case-insensitive match
+    if is_all_upper(word) {
+        for w in dict.words {
+            if str.lower(w) == lower {
+                return true
+            }
+        }
+    }
     return false
 }
 

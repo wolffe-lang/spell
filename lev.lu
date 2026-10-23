@@ -183,12 +183,12 @@ pub fn damerau_distance_capped(a: str, b: str, k: int) -> int {
             } else {
                 dp[i][j] = min3(dp[i][j - 1] + 1, dp[i - 1][j] + 1, dp[i - 1][j - 1] + 1)
             }
-            // Transposition
+            // Transposition (restricted: cost is dp[i-2][j-2] + 1)
             if i > 1 &&
                 j > 1 &&
                 chars_a[i - 1] == chars_b[j - 2] &&
                 chars_a[i - 2] == chars_b[j - 1] {
-                let trans = dp[i - 2][j - 2]
+                let trans = dp[i - 2][j - 2] + 1
                 if trans < dp[i][j] {
                     dp[i][j] = trans
                 }
