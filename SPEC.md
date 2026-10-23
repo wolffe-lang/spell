@@ -107,7 +107,7 @@ wolf fmt --check *.lu
 
 ## 9. Stretch goals
 
-- Damerau (transposition as one edit) as `--damerau`, with the oracle updated.
+- Restricted Damerau-Levenshtein (transposition as one edit, optimal string alignment) as `--damerau`, with the oracle updated.
 - Frequency-ranked suggestions from a word-count file.
 - A persistent on-disk index (`spell index > words.bk`) loaded in milliseconds.
 
