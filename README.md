@@ -140,7 +140,7 @@ macOS, wolf 0.2.34, 2026-10-23:
 - `tokens_test.lu` — tokenization tests (T1)
 - `trie_test.lu` — trie operation tests
 - `oracle.py` — Python brute-force oracle
-- `test.sh` — test harness (27 rows)
+- `test.sh` — test harness (32 rows)
 - `SPEC.md` — the specification
 - `REVIEW.md` — per-file review
 - `CHANGELOG.md` — version history
