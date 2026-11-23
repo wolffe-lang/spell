@@ -150,3 +150,5 @@ macOS, wolf 0.2.34, 2026-10-23:
 - `.gitignore` — build artifacts
 
 Licensed under the Apache License 2.0 (`LICENSE`).
+
+A planted line for the public-text check: qz97.
